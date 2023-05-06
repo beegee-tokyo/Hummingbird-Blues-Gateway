@@ -4,6 +4,8 @@
 
 ----
 
+While WisBlock is usually associated with _**LoRa**_ and _**LoRaWAN**_, this time we are diving into the cellular data transmission using the Blues.IO Notecard. To make it more interesting, we are mixing LoRa P2P communication and cellular communication into one project.
+
 # Overview
 When I got a [Blues Notecard](https://blues.io/products/notecard/) for some testing, the first thing was of course to connect it to the WisBlock modules. After some initial testing like connecting the Notecard to my cellular provider and sending some sensor data, I was hungry for more.    
 
@@ -195,7 +197,8 @@ The content of this file has to be copied into the _**HTTP Payload Decoder**_ of
 ----
 
 Then the matching fields for the sensor data have to been created. The easiest way to do this is to wait for incoming data from the sensors. If no matching field is existing, the data will be shown in the _**Suggested Fields**_ list in the configuration:
-<center><img src="./assets/Datacake-Suggested-Fields.png" alt="Suggested Fields"></center>
+<center><img src="./assets/Datacake-Suggested-Fields.png" alt="Suggested Fields"></center>    
+
 The sensor data can be easily assigned to fields using the _**Create Field**_ button.    
 
 ----
@@ -234,3 +237,11 @@ _**Sensor Device 2 is a barometric pressure sensor**_
 
 _**Sensor Device 3 is the Hummingbird gateway that I enquipped with an environment sensor**_    
 <center><img src="./assets/Datacake-Sensor-Tabs-3.png" alt="Sensor Gateway></center>
+
+----
+----
+
+# LoRa® is a registered trademark or service mark of Semtech Corporation or its affiliates. LoRaWAN® is a licensed mark.
+
+----
+----
