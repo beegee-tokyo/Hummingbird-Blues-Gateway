@@ -9,13 +9,9 @@
  *
  */
 #include "main.h"
+#include "product_uid.h"
 
 // #define usbSerial Serial
-
-#ifndef PRODUCT_UID
-#define PRODUCT_UID "" // "com.my-company.my-name:my-project"
-#pragma message "PRODUCT_UID is not defined in this example. Please ensure your Notecard has a product identifier set before running this example or define it in code here. More details at https://dev.blues.io/tools-and-sdks/samples/product-uid"
-#endif
 
 #define myProductID PRODUCT_UID
 
@@ -46,6 +42,15 @@ bool init_blues(void)
 		return false;
 	}
 
+	/*************************************************/
+	/* If the Notecard is properly setup, there is   */
+	/* need to setup the APN and card mode on every  */
+	/* restart! It will reuse the APN and mode that  */
+	/* was originally setup.                         */
+	/*************************************************/
+	/* If using the built-in eSIM card from Blues.IO */
+	/* these code lines should be complete removed!  */
+	/*************************************************/
 	MYLOG("BLUES", "Set APN");
 	// {“req”:”card.wireless”}
 	req = notecard.newRequest("card.wireless");
@@ -61,6 +66,9 @@ bool init_blues(void)
 		MYLOG("BLUES", "card.wireless request failed");
 		return false;
 	}
+	/*************************************************/
+	/* End of code block to be removed               */
+	/*************************************************/
 
 	MYLOG("BLUES", "Create template");
 	req = notecard.newRequest("note.add");

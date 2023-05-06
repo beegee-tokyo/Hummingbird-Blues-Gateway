@@ -87,8 +87,10 @@ bool init_app(void)
 	}
 	else
 	{
+		MYLOG("APP", "Start P2P RX");
 		// Set to permanent listen
 		g_lora_p2p_rx_mode = RX_MODE_RX;
+		Radio.Rx(0);
 	}
 
 	pinMode(WB_IO2, OUTPUT);
