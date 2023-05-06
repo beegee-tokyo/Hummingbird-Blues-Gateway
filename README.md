@@ -236,12 +236,15 @@ _**Sensor Device 2 is a barometric pressure sensor**_
 <center><img src="./assets/Datacake-Sensor-Tabs-2.png" alt="Barometer Sensor"></center>
 
 _**Sensor Device 3 is the Hummingbird gateway that I enquipped with an environment sensor**_    
-<center><img src="./assets/Datacake-Sensor-Tabs-3.png" alt="Sensor Gateway></center>
+<center><img src="./assets/Datacake-Sensor-Tabs-3.png" alt="Sensor Gateway"></center>    
 
 ----
 ----
 
-# LoRa® is a registered trademark or service mark of Semtech Corporation or its affiliates. LoRaWAN® is a licensed mark.
+# LoRa® is a registered trademark or service mark of Semtech Corporation or its affiliates. 
+
+
+# LoRaWAN® is a licensed mark.
 
 ----
 ----
