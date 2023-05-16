@@ -89,15 +89,17 @@ bool init_blues(void)
 			JAddNumberToObject(body, "temperature_7", 1.11);  // floating point (double)
 			JAddNumberToObject(body, "barometer_8", 1.11);	  // floating point (double)
 			JAddNumberToObject(body, "illuminance_15", 1.11); // floating point (double)
+			JAddNumberToObject(body, "illuminance_5", 1.11);  // floating point (double)
 			JAddNumberToObject(body, "voc_16", 1);			  // integer
 			JAddNumberToObject(body, "concentration_35", 1);  // integer
 			JAddNumberToObject(body, "voc_40", 1);			  // integer
 			JAddNumberToObject(body, "voc_41", 1);			  // integer
 			JAddNumberToObject(body, "voc_42", 1);			  // integer
 			JAddNumberToObject(body, "presence_48", 1);		  // integer
+			
 
-			// Add the body to the request
-			JAddItemToObject(req, "body", body);
+				// Add the body to the request
+				JAddItemToObject(req, "body", body);
 		}
 
 		JAddStringToObject(req, "node_id", "AAAAAAAAAAAAAAAA");

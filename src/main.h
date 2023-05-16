@@ -70,7 +70,7 @@ void lora_data_handler(void);
 extern WisCayenne g_solution_data;
 
 // Parser
-bool blues_parse_send(uint8_t *data, uint16_t data_len, String sensor_id);
+bool blues_parse_send(uint8_t *data, uint16_t data_len);
 
 // Blues.io
 bool init_blues(void);

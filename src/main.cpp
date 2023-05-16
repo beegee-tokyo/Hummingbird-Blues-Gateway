@@ -127,15 +127,6 @@ void app_event_handler(void)
 				read_rak1906();
 			}
 
-			char sensor_id[16];
-			uint8_t log_idx = 0;
-			for (int idx = 0; idx < 8; idx++)
-			{
-				sprintf(&sensor_id[log_idx], "%02X", g_lorawan_settings.node_device_eui[idx]);
-				log_idx += 2;
-			}
-			blues_parse_send(g_solution_data.getBuffer(), g_solution_data.getSize(), String(sensor_id));
-
 			if (!has_blues)
 			{
 				if (g_lorawan_settings.lorawan_enable)
@@ -159,13 +150,14 @@ void app_event_handler(void)
 				else
 				{
 					// Add unique identifier in front of the P2P packet, here we use the DevEUI
-					uint8_t p2p_buffer[g_solution_data.getSize() + 8];
-					memcpy(p2p_buffer, g_lorawan_settings.node_device_eui, 8);
-					// Add the packet data
-					memcpy(&p2p_buffer[8], g_solution_data.getBuffer(), g_solution_data.getSize());
+					g_solution_data.addDevID(LPP_CHANNEL_DEVID, &g_lorawan_settings.node_device_eui[4]);
+					// uint8_t packet_buffer[g_solution_data.getSize() + 8];
+					// memcpy(packet_buffer, g_lorawan_settings.node_device_eui, 8);
+					// memcpy(&packet_buffer[8], g_solution_data.getBuffer(), g_solution_data.getSize());
 
 					// Send packet over LoRa
-					if (send_p2p_packet(p2p_buffer, g_solution_data.getSize() + 8))
+					// if (send_p2p_packet(packet_buffer, g_solution_data.getSize() + 8))
+					if (send_p2p_packet(g_solution_data.getBuffer(), g_solution_data.getSize()))
 					{
 						MYLOG("APP", "Packet enqueued");
 					}
@@ -175,7 +167,12 @@ void app_event_handler(void)
 						MYLOG("APP", "Packet too big");
 					}
 				}
-			} 
+			}
+			else
+			{
+				g_solution_data.addDevID(0, &g_lorawan_settings.node_device_eui[4]);
+				blues_parse_send(g_solution_data.getBuffer(), g_solution_data.getSize());
+			}
 			// Reset the packet
 			g_solution_data.reset();
 		}
@@ -190,16 +187,7 @@ void app_event_handler(void)
 	{
 		g_task_event_type &= N_PARSE;
 
-		char sensor_id[16];
-		uint8_t log_idx = 0;
-		for (int idx = 0; idx < 8; idx++)
-		{
-			sprintf(&sensor_id[log_idx], "%02X", rcvd_data[idx]);
-			log_idx += 2;
-		}
-
-		MYLOG("APP", "Found sensor ID %s", sensor_id);
-		if (!blues_parse_send(&rcvd_data[8], rcvd_data_len - 8, String(sensor_id)))
+		if (!blues_parse_send(rcvd_data, rcvd_data_len))
 		{
 			MYLOG("APP", "Parsing or sending failed");
 

@@ -10,34 +10,37 @@
  */
 #include "main.h"
 
-uint8_t value_id[37] = {0, 1, 2, 3, 100, 101, 102, 103,
-						104, 112, 113, 115, 116, 117, 118, 120,
-						121, 125, 128, 130, 131, 132, 133, 134,
-						135, 136, 137, 138, 142, 188, 190, 191,
-						192, 193, 194, 195, 203};
+/** Number of defined sensor types */
+#define NUM_DEFINED_SENSOR_TYPES 38
 
-uint8_t value_size[37] = {1, 1, 2, 2, 4, 2, 1, 2,
-						  1, 2, 6, 2, 2, 2, 4, 1,
-						  2, 2, 2, 4, 4, 2, 4, 6,
-						  3, 9, 11, 2, 1, 2, 2, 2,
-						  2, 2, 2, 2, 1};
+uint8_t value_id[NUM_DEFINED_SENSOR_TYPES] = {0, 1, 2, 3, 100, 101, 102, 103,
+											  104, 112, 113, 115, 116, 117, 118, 120,
+											  121, 125, 128, 130, 131, 132, 133, 134,
+											  135, 136, 137, 138, 142, 188, 190, 191,
+											  192, 193, 194, 195, 203, 255};
 
-String value_name[37] = {"digital_in", "digital_out", "analog_in", "analog_out", "generic", "illuminance", "presence", "temperature",
-						 "humidity", "humidity_prec", "accelerometer", "barometer", "voltage", "current", "frequency", "percentage",
-						 "altitude", "concentration", "power", "distance", "energy", "direction", "time", "gyrometer",
-						 "colour", "gps", "gps", "voc", "switch", "soil_moist", "wind_speed", "wind_direction",
-						 "soil_ec", "soil_ph_h", "soil_ph_l", "pyranometer", "light"};
+uint8_t value_size[NUM_DEFINED_SENSOR_TYPES] = {1, 1, 2, 2, 4, 2, 1, 2,
+												1, 2, 6, 2, 2, 2, 4, 1,
+												2, 2, 2, 4, 4, 2, 4, 6,
+												3, 9, 11, 2, 1, 2, 2, 2,
+												2, 2, 2, 2, 1, 4};
 
-uint32_t value_divider[37] = {1, 1, 100, 100, 1, 1, 1, 10,
-							  2, 10, 1000, 10, 100, 1000, 1, 1,
-							  1, 1, 1, 1000, 1000, 1, 1, 100,
-							  1, 10000, 1000000, 1, 1, 10, 100, 1,
-							  1000, 100, 10, 1, 1};
+String value_name[NUM_DEFINED_SENSOR_TYPES] = {"digital_in", "digital_out", "analog_in", "analog_out", "generic", "illuminance", "presence", "temperature",
+											   "humidity", "humidity_prec", "accelerometer", "barometer", "voltage", "current", "frequency", "percentage",
+											   "altitude", "concentration", "power", "distance", "energy", "direction", "time", "gyrometer",
+											   "colour", "gps", "gps", "voc", "switch", "soil_moist", "wind_speed", "wind_direction",
+											   "soil_ec", "soil_ph_h", "soil_ph_l", "pyranometer", "light", "node_id"};
+
+uint32_t value_divider[NUM_DEFINED_SENSOR_TYPES] = {1, 1, 100, 100, 1, 1, 1, 10,
+													2, 10, 1000, 10, 100, 1000, 1, 1,
+													1, 1, 1, 1000, 1000, 1, 1, 100,
+													1, 10000, 1000000, 1, 1, 10, 100, 1,
+													1000, 100, 10, 1, 1, 1};
 
 // {136;9;"gps";true; [ 10000, 10000, 100 ]},
 // {137;11;"gps";true;[ 1000000, 1000000, 100 ]},
 
-bool blues_parse_send(uint8_t *data, uint16_t data_len, String sensor_id)
+bool blues_parse_send(uint8_t *data, uint16_t data_len)
 {
 	blues_start_req("note.add");
 
@@ -56,10 +59,11 @@ bool blues_parse_send(uint8_t *data, uint16_t data_len, String sensor_id)
 		uint32_t unsigned_val3 = 0;
 		int32_t signed_val1 = 0;
 		String sens_full_name = "";
+		char node_id_str[9];
 		J *sec_lvl;
 		char rounding[40];
 
-		JAddStringToObject(body, "node_id", sensor_id.c_str());
+		// JAddStringToObject(body, "node_id", sensor_id.c_str());
 
 		while (byte_idx < data_len)
 		{
@@ -68,7 +72,7 @@ bool blues_parse_send(uint8_t *data, uint16_t data_len, String sensor_id)
 			sens_num = data[current_byte_idx++];
 			MYLOG("PARSE", "Sensor Number %d", sens_num);
 			// find matching index
-			for (int idx = 0; idx < 37; idx++)
+			for (int idx = 0; idx < NUM_DEFINED_SENSOR_TYPES; idx++)
 			{
 				if (value_id[idx] == data[current_byte_idx])
 				{
@@ -157,6 +161,22 @@ bool blues_parse_send(uint8_t *data, uint16_t data_len, String sensor_id)
 				JAddNumberToObject(sec_lvl, "Blue", unsigned_val1);
 				MYLOG("PARSE", "r %ld g %ld b %ld", unsigned_val1, unsigned_val2, unsigned_val3);
 				break;
+			case 255:
+				unsigned_val1 = 0;
+				for (int cnt = 0; cnt < value_size[sens_idx]; cnt++)
+				{
+					unsigned_val1 = (unsigned_val1 << 8) | data[current_byte_idx];
+					current_byte_idx++;
+				}
+				sprintf(node_id_str,"%08LX",(uint64_t)unsigned_val1);
+				MYLOG("PARSE", "unsigned_val1 %s", node_id_str);
+
+				sens_full_name = value_name[sens_idx] + "_" + String(sens_num);
+				JAddStringToObject(body, value_name[sens_idx].c_str(), node_id_str);
+
+				MYLOG("PARSE", "Added %s %08LX", sens_full_name.c_str(), (uint64_t)unsigned_val1);
+
+				break;
 			default:
 				signed_val1 = 0;
 				for (int cnt = 0; cnt < value_size[sens_idx]; cnt++)
@@ -173,6 +193,7 @@ bool blues_parse_send(uint8_t *data, uint16_t data_len, String sensor_id)
 				sens_full_name = value_name[sens_idx] + "_" + String(sens_num);
 				JAddNumberToObject(body, sens_full_name.c_str(), float_val1);
 				MYLOG("PARSE", "Added %s %.2f", sens_full_name.c_str(), float_val1);
+
 				break;
 			}
 			byte_idx = byte_idx + value_size[sens_idx] + 2;
