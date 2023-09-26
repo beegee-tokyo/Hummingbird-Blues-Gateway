@@ -41,55 +41,110 @@ I looked into the protocol and data flow of Sparrow and (of course) found some t
 ----
 
 ## Hummingbird Gateway
-The only thing that requires some work is to setup the WisBlock system with the Blues Notecard. At the moment there is no WisBlock IO module available to plug-in the Notecard, but luckily, with a [Notecarrier-A](https://blues.io/products/notecarrier/notecarrier-a/) or [Notecarrier-B](https://blues.io/products/notecarrier/notecarrier-b/) only 3 wires (I2C bus + GND) are required to connect my WisBlock Core with the Notecard on the Notecarrier. Of course this requires that both the Notecarrier and the WisBlock Base Board are supplied by separate power supplies. This is on the to-do-list for the next improvements.     
+The only thing that requires some work is to setup the WisBlock system with the Blues Notecard. To connect the Blues Notecard RAKwireless has the RAK13102 WisBlock IO module. This module uses the IO slot of the RAK19007 Base Board.     
 <center><img src="./assets/hardware.jpg" alt="Hardware Setup"></center>
 The code in this repository is for the Hummingbird Gateway and supports beside of the communication to the Blues Notecard a RAK1906 environment sensor. The code can be used as well for a simple sensor node with a RAK1906 sensor without the Blues Notecard.
 
-### ⚠️ _IMPORTANT 1_ ⚠️    
-You have to setup your Notecard at Blues.IO before it can be used. This setup is not scope of this README, please follow the very good [Quickstart](https://dev.blues.io/quickstart/) guides provided by Blues.    
+## Setup
 
-### ⚠️ _IMPORTANT 2_ ⚠️        
-To connect the Blues Notecard, a _**Product UID**_ is required. This product UID is created while you setup your Notecard in the Notehub following the above mentioned Quickstart. Of course I am not sharing my Product UID here. The Product UID is defined in a file named _**`product_uid.h`**_ that you have to create in the src file of the project. The content of this file is like this:    
-```cpp
-#ifndef PRODUCT_UID
-#define PRODUCT_UID "<YOUR_PRODUCT_UID_NEEDS_TO_BE_HERE>" // "com.my-company.my-name:my-project"
-#pragma message "PRODUCT_UID is not defined in this example. Please ensure your Notecard has a product identifier set before running this example or define it in code here. More details at https://dev.blues.io/tools-and-sdks/samples/product-uid"
-#endif
-```
-You have to replace _**`<YOUR_PRODUCT_UID_NEEDS_TO_BE_HERE>`**_ with your own product UID.    
+You have to setup your NoteCard at Blues.IO before it can be used. There are two options to setup the NoteCard.     
 
-### ⚠️ _IMPORTANT 3_ ⚠️    
-In the file _**blues.cpp**_ the firmware is setting up the APN and the connection mode.    
-1) if using the eSIM card from Blues.IO, there is no need to do this and this code part can be removed.
-2) if using an external SIM card, this needs to be done only _**ONCE**_ and it is usually done in the initial setup of the Notecard and you can remove this code part.
+Option one is to follow the very good [Quickstart](https://dev.blues.io/quickstart/)↗️ guides provided by Blues.    
 
-**Code part to be removed:** ==> [blues.cpp](https://github.com/beegee-tokyo/Hummingbird-Blues-Gateway/blob/44b5093bf170faf65016ae071a5598281e6a899b/src/blues.cpp#L49)
-```cpp
-	/*************************************************/
-	/* If the Notecard is properly setup, there is   */
-	/* need to setup the APN and card mode on every  */
-	/* restart! It will reuse the APN and mode that  */
-	/* was originally setup.                         */
-	/*************************************************/
-	/* If using the built-in eSIM card from Blues.IO */
-	/* These code lines should be complete removed!  */
-	/*************************************************/
-	MYLOG("BLUES", "Set APN");
-	// {“req”:”card.wireless”}
-	req = notecard.newRequest("card.wireless");
-	// For SMART
-	// JAddStringToObject(req, "apn", "internet");
-	// JAddStringToObject(req, "mode", "a");
-	// For Monogoto
-	JAddStringToObject(req, "apn", "data.mono");
-	JAddStringToObject(req, "mode", "a");
-	// if (!notecard.sendRequest(req))
-	if (!blues_send_req())
-	{
-		MYLOG("BLUES", "card.wireless request failed");
-		return false;
-	}
-```
+Option two is to setup the device with AT commands directly through the WisBlock's USB. 
+
+### Option one, NoteCard Setup through the USB of the RAK13102 NoteCard        
+
+Connect the RAK13102 NoteCarriers USB to your computer (WisBlock has to be powered separate!) and use the [Blues Quickstart](https://dev.blues.io/quickstart/)↗️
+
+### Option two, setup through AT commands     
+
+#### ⚠️ IMPORTANT ⚠️        
+If setting up the NoteCard through AT commands, these settings will always override settings that are stored in the NoteCard.    
+To remove settings saved from AT commands use the AT command _**`ATC+BR`**_ to delete all settings saved from AT commands before.    
+
+Connect the WisBlock USB port to your computer and connect a serial terminal application to the COM port.
+
+#### Setup the Product UID
+To connect the Blues NoteCard to the NoteHub, a _**Product UID**_ is required. This product UID is created when you create your project in NoteHub as shown in [Set up Notehub](https://dev.blues.io/quickstart/notecard-quickstart/notecard-and-notecarrier-f/#set-up-notehub)↗️.    
+
+Get the Product UID from your NoteHub project:
+<center><img src="./assets/Notehub-Product-UID.png" alt="Product UID"></center>
+
+Then use the ATC+BEUI command to save the Product UID in the WisBlock:
+
+_**`ATC+BUID=com.my-company.my-name:my-project`**_
+
+Replace `com.my-company.my-name:my-project` with your project EUI.
+
+The current product UID can be queried with
+
+_**`ATC+BUID=?`**_
+
+#### Select SIM card    
+There are two options for the Blues NoteCard to connect. The primary option is to use the eSIM that is already on the NoteCard. However, there are countries where the eSIM is not working yet. In this case you need to use an external SIM card in the RAK13102 WisBlock module. This can be a SIM card from you local cellular provider or a IoT data SIM card like for example a SIM card from [Monogoto](https://monogoto.io/)↗️ or from another provider. You can purchase a MonoGoto card together with the Blues NoteCard from the RAKwireless store [IoT SIM card for WisNode Modules](https://store.rakwireless.com/products/iot-sim-card-for-wisnode-modules?variant=42658018787526)     
+
+Use the AT command ATC+BSIM to select the SIM card to be used.    
+
+The syntax is _**`ATC+BSIM=<SIM>:<APN>`**_    
+`<SIM>` == 0 to use the eSIM of the NoteCard only    
+`<SIM>` == 1 to use the external SIM card of the RAK13102 NoteCarrier only    
+`<SIM>` == 2 to use the external SIM card as primary and the eSIM of the NoteCard as secondary   
+`<SIM>` == 3 to use the external SIM card as secondary and the eSIM of the NoteCard as primary    
+
+If the external SIM card is selected (<SIM> is 1, 2 or 3), the next parameter is the APN that is required to connect the NoteCard
+`<APN>` e.g. _**`internet`**_ to use with the Filipino network provider SMART.    
+Several carriers will have a website dedicated to manually configuring devices, while other can be discovered using APN discovery websites like [apn.how](https://apn.how/)↗️ 
+
+The current settings can be queried with    
+_**`AT+BSIM=?`**_
+
+#### Select NoteCard connection mode    
+The Blues NoteCard supports different connection modes. For testing purposes it might be required to have the NoteCard connected continuously to the cellular network, but in an battery powered application, the prefered connection type would be minimal, which connects to the cellular network only when data needs to be transfered.
+
+The connection mode can be setup with the AT command AT+BMOD.
+
+The syntax is _**`AT+BMOD=<mode>`**_    
+`<mode>` == 0 to use the minimal connection mode    
+`<mode>` == 1 to use the continuous connection mode    
+
+Default is to use minimal connection mode.
+
+The current status can be queried with    
+_**`AT+BMOD=?`**_.    
+
+#### Delete Blues NoteCard settings    
+If required all stored Blues NoteCard settings can be deleted from the WisBlock Core module with the AT+BR command.    
+##### ⚠️ _Requires restart or power cycle of the device_ ⚠️      
+
+The syntax is _**`AT+BR`**_     
+
+#### Reset Blues NoteCard to factory settings    
+If required the Blues NoteCard can be reset to factory default.     
+
+----
+<i><h3>⚠️ THIS WILL ERASE ALL SETTINGS IN THE NOTECARD ⚠️ </h3></i>     
+  
+----
+
+All saved settings like Product UID, connection settings, APN, ... in the NoteCard _**WILL BE ERASED**_    
+
+The syntax is _**`AT+BRES`**_     
+
+#### Get Blues NoteCard status    
+Show NoteCard connection status with _**`req:hub.status`**_.    
+
+The syntax is _**`AT+BLUES`**_     
+
+#### Send request to the NoteCard
+##### <h1>⚠️</h1> _This works only for simple requests without parameters, like hub.status or hub.sync_ ⚠️    
+
+Sends a simple request to the NoteCard and returns the response from the NoteCard
+
+The syntax is _**`AT+BREQ=<request>`**_    
+`<request>` is the NoteCard request, e.g. _**`card.version`**_ or _**`card.location`**_   
+
+
 ----
 
 ## Hummingbird Sensor    
@@ -110,15 +165,12 @@ In my examples, I use the [CayenneLPP library from ElectronicCats](https://githu
 
 ### ⚠️ Using WisBlock-API-V2: ⚠️    
 ```cpp
-// Add unique identifier in front of the P2P packet, here we use the DevEUI
-uint8_t p2p_buffer[g_solution_data.getSize() + 8];
-memcpy(p2p_buffer, g_lorawan_settings.node_device_eui, 8);
-// Add the packet data
-memcpy(&p2p_buffer[8], g_solution_data.getBuffer(), g_solution_data.getSize());
+// Add the device DevEUI as a device ID to the packet
+g_solution_data.addDevID(LPP_CHANNEL_DEVID, &g_lorawan_settings.node_device_eui[4]);
 ```    
 before sending the packet with
 ```cpp
-send_p2p_packet(p2p_buffer, g_solution_data.getSize() + 8);
+send_p2p_packet(g_solution_data.getBuffer(), g_solution_data.getSize());
 ```
 ----
 ### ⚠️ Using RUI3: ⚠️

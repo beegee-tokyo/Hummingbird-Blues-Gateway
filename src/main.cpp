@@ -153,14 +153,10 @@ void app_event_handler(void)
 				}
 				else
 				{
-					// Add unique identifier in front of the P2P packet, here we use the DevEUI
+					// Add the device DevEUI as a device ID to the packet
 					g_solution_data.addDevID(LPP_CHANNEL_DEVID, &g_lorawan_settings.node_device_eui[4]);
-					// uint8_t packet_buffer[g_solution_data.getSize() + 8];
-					// memcpy(packet_buffer, g_lorawan_settings.node_device_eui, 8);
-					// memcpy(&packet_buffer[8], g_solution_data.getBuffer(), g_solution_data.getSize());
 
 					// Send packet over LoRa
-					// if (send_p2p_packet(packet_buffer, g_solution_data.getSize() + 8))
 					if (send_p2p_packet(g_solution_data.getBuffer(), g_solution_data.getSize()))
 					{
 						MYLOG("APP", "Packet enqueued");
