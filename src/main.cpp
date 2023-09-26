@@ -72,6 +72,9 @@ bool init_app(void)
 	MYLOG("INI", "WisBlock Hummingbird Blues Sensor");
 	MYLOG("INI", "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
 
+	// Initialize User AT commands
+	init_user_at();
+
 	// Check if RAK1906 is available
 	has_rak1906 = init_rak1906();
 	if (has_rak1906)
@@ -87,6 +90,7 @@ bool init_app(void)
 	}
 	else
 	{
+		AT_PRINTF("+EVT:RAK13102");
 		MYLOG("APP", "Start P2P RX");
 		// Set to permanent listen
 		g_lora_p2p_rx_mode = RX_MODE_RX;
@@ -170,6 +174,9 @@ void app_event_handler(void)
 			}
 			else
 			{
+				MYLOG("APP", "Get hub sync status:");
+				blues_hub_status();
+
 				g_solution_data.addDevID(0, &g_lorawan_settings.node_device_eui[4]);
 				blues_parse_send(g_solution_data.getBuffer(), g_solution_data.getSize());
 			}
@@ -187,26 +194,33 @@ void app_event_handler(void)
 	{
 		g_task_event_type &= N_PARSE;
 
-		if (!blues_parse_send(rcvd_data, rcvd_data_len))
+		if (has_blues)
 		{
-			MYLOG("APP", "Parsing or sending failed");
+			if (!blues_parse_send(rcvd_data, rcvd_data_len))
+			{
+				MYLOG("APP", "Parsing or sending failed");
 
-			MYLOG("APP", "**********************************************");
-			MYLOG("APP", "Get hub sync status:");
-			// {“req”:”hub.sync.status”}
-			blues_start_req("hub.sync.status");
-			blues_send_req();
+				MYLOG("APP", "**********************************************");
+				MYLOG("APP", "Get hub sync status:");
+				// {“req”:”hub.sync.status”}
+				blues_start_req("hub.sync.status");
+				blues_send_req();
 
-			MYLOG("APP", "**********************************************");
-			delay(2000);
+				MYLOG("APP", "**********************************************");
+				delay(2000);
 
-			MYLOG("APP", "Get note card status:");
-			// {“req”:”card.wireless”}
-			blues_start_req("card.wireless");
-			blues_send_req();
+				MYLOG("APP", "Get note card status:");
+				// {“req”:”card.wireless”}
+				blues_start_req("card.wireless");
+				blues_send_req();
 
-			MYLOG("APP", "**********************************************");
-			delay(2000);
+				MYLOG("APP", "**********************************************");
+				delay(2000);
+			}
+		}
+		else
+		{
+			MYLOG("APP", "Got PARSE request, but no Blues Notecard detected");
 		}
 	}
 }
@@ -271,6 +285,7 @@ void lora_data_handler(void)
 		}
 		MYLOG("APP", "%s", log_buff);
 
+#if MY_DEBUG > 0
 		CayenneLPP lpp(g_rx_data_len - 8);
 		memcpy(lpp.getBuffer(), &g_rx_lora_data[8], g_rx_data_len - 8);
 		DynamicJsonDocument jsonBuffer(4096);
@@ -278,7 +293,7 @@ void lora_data_handler(void)
 		lpp.decodeTTN(lpp.getBuffer(), g_rx_data_len - 8, root);
 		serializeJsonPretty(root, Serial);
 		Serial.println();
-
+#endif
 		memcpy(rcvd_data, g_rx_lora_data, g_rx_data_len);
 		rcvd_data_len = g_rx_data_len;
 		api_wake_loop(PARSE);

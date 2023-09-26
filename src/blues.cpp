@@ -11,106 +11,202 @@
 #include "main.h"
 #include "product_uid.h"
 
-// #define usbSerial Serial
-
+#ifndef PRODUCT_UID
+#define PRODUCT_UID "com.my-company.my-name:my-project"
+#pragma message "PRODUCT_UID is not defined in this example. Please ensure your Notecard has a product identifier set before running this example or define it in code here. More details at https://dev.blues.io/tools-and-sdks/samples/product-uid"
+#endif
 #define myProductID PRODUCT_UID
 
 Notecard notecard;
 
 J *req;
 
+/** Buffer for serialized JSON response */
+char blues_response[4096];
+
 bool init_blues(void)
 {
-#ifdef usbSerial
-	delay(2500);
-	usbSerial.begin(115200);
-	notecard.setDebugOutputStream(usbSerial);
-#endif
-
 	Wire.begin();
 	notecard.begin();
 
-	MYLOG("BLUES", "Set Product ID");
-	req = notecard.newRequest("hub.set");
-
-	JAddStringToObject(req, "product", myProductID);
-	JAddStringToObject(req, "mode", "continuous");
-	// if (!notecard.sendRequest(req))
-	if (!blues_send_req())
+	// Get the ProductUID from the saved settings
+	// If no settings are found, use NoteCard internal settings!
+	if (read_blues_settings())
 	{
-		MYLOG("BLUES", "hub.set request failed");
-		return false;
-	}
-
-	/*************************************************/
-	/* If the Notecard is properly setup, there is   */
-	/* need to setup the APN and card mode on every  */
-	/* restart! It will reuse the APN and mode that  */
-	/* was originally setup.                         */
-	/*************************************************/
-	/* If using the built-in eSIM card from Blues.IO */
-	/* these code lines should be complete removed!  */
-	/*************************************************/
-	MYLOG("BLUES", "Set APN");
-	// {“req”:”card.wireless”}
-	req = notecard.newRequest("card.wireless");
-	// For SMART
-	// JAddStringToObject(req, "apn", "internet");
-	// JAddStringToObject(req, "mode", "a");
-	// For Monogoto
-	JAddStringToObject(req, "apn", "data.mono");
-	JAddStringToObject(req, "mode", "a");
-	// if (!notecard.sendRequest(req))
-	if (!blues_send_req())
-	{
-		MYLOG("BLUES", "card.wireless request failed");
-		return false;
-	}
-	/*************************************************/
-	/* End of code block to be removed               */
-	/*************************************************/
-
-	MYLOG("BLUES", "Create template");
-	req = notecard.newRequest("note.add");
-	if (req != NULL)
-	{
-
-		// Create the body for a template that will be used to send notes below
-		J *body = JCreateObject();
-		if (body != NULL)
+		MYLOG("BLUES", "Found saved settings, override NoteCard internal settings!");
+		if (memcmp(g_blues_settings.product_uid, "com.my-company.my-name", 22) == 0)
 		{
-			JAddStringToObject(body, "node_id", "AAAAAAAAAAAAAAAA");
-
-			// Define the JSON template
-			JAddNumberToObject(body, "voltage_1", 1.11);	  // floating point (double)
-			JAddNumberToObject(body, "humidity_2", 1.11);	  // floating point (double)
-			JAddNumberToObject(body, "temperature_3", 1.11);  // floating point (double)
-			JAddNumberToObject(body, "humidity_6", 1.11);	  // floating point (double)
-			JAddNumberToObject(body, "temperature_7", 1.11);  // floating point (double)
-			JAddNumberToObject(body, "barometer_8", 1.11);	  // floating point (double)
-			JAddNumberToObject(body, "illuminance_15", 1.11); // floating point (double)
-			JAddNumberToObject(body, "illuminance_5", 1.11);  // floating point (double)
-			JAddNumberToObject(body, "voc_16", 1);			  // integer
-			JAddNumberToObject(body, "concentration_35", 1);  // integer
-			JAddNumberToObject(body, "voc_40", 1);			  // integer
-			JAddNumberToObject(body, "voc_41", 1);			  // integer
-			JAddNumberToObject(body, "voc_42", 1);			  // integer
-			JAddNumberToObject(body, "presence_48", 1);		  // integer
-			
-
-				// Add the body to the request
-				JAddItemToObject(req, "body", body);
+			MYLOG("BLUES", "No Product ID saved");
+			AT_PRINTF(":EVT NO PUID");
+			memcpy(g_blues_settings.product_uid, PRODUCT_UID, 33);
 		}
 
-		JAddStringToObject(req, "node_id", "AAAAAAAAAAAAAAAA");
+		MYLOG("BLUES", "Set Product ID and connection mode");
+		if (blues_start_req("hub.set"))
+		{
+			JAddStringToObject(req, "product", g_blues_settings.product_uid);
+			if (g_blues_settings.conn_continous)
+			{
+				JAddStringToObject(req, "mode", "continuous");
+			}
+			else
+			{
+				JAddStringToObject(req, "mode", "minimum");
+			}
+			// Set sync time to 20 times the sensor read time
+			JAddNumberToObject(req, "seconds", (g_lorawan_settings.send_repeat_time * 20 / 1000));
+			JAddBoolToObject(req, "heartbeat", true);
 
-		// Register the template in the output queue notefile
-		JAddStringToObject(req, "file", "sensors.qo");
-		JAddBoolToObject(req, "sync", true);
-		JAddBoolToObject(req, "template", true);
+			if (!blues_send_req())
+			{
+				MYLOG("BLUES", "hub.set request failed");
+				return false;
+			}
+		}
+		else
+		{
+			MYLOG("BLUES", "hub.set request failed");
+			return false;
+		}
+
+#if USE_GNSS == 1
+		MYLOG("BLUES", "Set location mode");
+		if (blues_start_req("card.location.mode"))
+		{
+			// Continous GNSS mode
+			// JAddStringToObject(req, "mode", "continous");
+
+			// Periodic GNSS mode
+			JAddStringToObject(req, "mode", "periodic");
+
+			// Set location acquisition time to the sensor read time
+			JAddNumberToObject(req, "seconds", (g_lorawan_settings.send_repeat_time / 2000));
+			JAddBoolToObject(req, "heartbeat", true);
+			if (!blues_send_req())
+			{
+				MYLOG("BLUES", "card.location.mode request failed");
+				return false;
+			}
+		}
+		else
+		{
+			MYLOG("BLUES", "card.location.mode request failed");
+			return false;
+		}
+#else
+		MYLOG("BLUES", "Stop location mode");
+		if (blues_start_req("card.location.mode"))
+		{
+			// GNSS mode off
+			JAddStringToObject(req, "mode", "off");
+			if (!blues_send_req())
+			{
+				MYLOG("BLUES", "card.location.mode request failed");
+				return false;
+			}
+		}
+		else
+		{
+			MYLOG("BLUES", "card.location.mode request failed");
+			return false;
+		}
+#endif
+
+		/// \todo reset attn signal needs rework
+		// pinMode(WB_IO5, INPUT);
+		// if (g_blues_settings.motion_trigger)
+		// {
+		// 	if (blues_start_req("card.attn"))
+		// 	{
+		// 		JAddStringToObject(req, "mode", "disarm");
+		// 		if (!blues_send_req())
+		// 		{
+		// 			MYLOG("BLUES", "card.attn request failed");
+		// 		}
+
+		// 		if (!blues_enable_attn())
+		// 		{
+		// 			return false;
+		// 		}
+		// 	}
+		// }
+		// else
+		// {
+		// 	MYLOG("BLUES", "card.attn request failed");
+		// 	return false;
+		// }
+
+		MYLOG("BLUES", "Set APN");
+		// {“req”:”card.wireless”}
+		if (blues_start_req("card.wireless"))
+		{
+			JAddStringToObject(req, "mode", "auto");
+
+			switch (g_blues_settings.sim_usage)
+			{
+			case 0:
+				// USING BLUES eSIM CARD
+				JAddStringToObject(req, (char *)"method", (char *)"primary");
+				break;
+			case 1:
+				// USING EXTERNAL SIM CARD only
+				JAddStringToObject(req, (char *)"apn", g_blues_settings.ext_sim_apn);
+				JAddStringToObject(req, (char *)"method", (char *)"secondary");
+				break;
+			case 2:
+				// USING EXTERNAL SIM CARD as primary
+				JAddStringToObject(req, (char *)"apn", g_blues_settings.ext_sim_apn);
+				JAddStringToObject(req, (char *)"method", (char *)"dual-secondary-primary");
+				break;
+			case 3:
+				// USING EXTERNAL SIM CARD as secondary
+				JAddStringToObject(req, (char *)"apn", g_blues_settings.ext_sim_apn);
+				JAddStringToObject(req, (char *)"method", (char *)"dual-primary-secondary");
+				break;
+			}
+
+			if (!blues_send_req())
+			{
+				MYLOG("BLUES", "card.wireless request failed");
+				return false;
+			}
+		}
+		else
+		{
+			MYLOG("BLUES", "card.wireless request failed");
+			return false;
+		}
+
+#if IS_V2 == 1
+		// Only for V2 cards, setup the WiFi network
+		MYLOG("BLUES", "Set WiFi");
+		if (blues_start_req("card.wifi"))
+		{
+			JAddStringToObject(req, "ssid", "-");
+			JAddStringToObject(req, "password", "-");
+			JAddStringToObject(req, "name", "RAK-");
+			JAddStringToObject(req, "org", "RAK-PH");
+			JAddBoolToObject(req, "start", false);
+
+			if (!blues_send_req())
+			{
+				MYLOG("BLUES", "card.wifi request failed");
+			}
+		}
+		else
+		{
+			MYLOG("BLUES", "card.wifi request failed");
+			return false;
+		}
+#endif
+	}
+
+	// {"req": "card.version"}
+	if (blues_start_req("card.version"))
+	{
 		if (!blues_send_req())
 		{
-			MYLOG("BLUES", "Set template failed");
+			MYLOG("BLUES", "card.version request failed");
 		}
 	}
 	return true;
@@ -138,8 +234,26 @@ bool blues_send_req(void)
 		return false;
 	}
 	json = JPrintUnformatted(rsp);
-	MYLOG("BLUES", "Card response = %s", json);
+	snprintf(blues_response, 4095, "%s", json);
+	MYLOG("BLUES", "Card response = %s", blues_response);
 	notecard.deleteResponse(rsp);
 
 	return true;
+}
+
+void blues_hub_status(void)
+{
+	blues_start_req("hub.status");
+	if (!blues_send_req())
+	{
+		MYLOG("BLUES", "hub.status request failed");
+	}
+}
+
+void blues_card_restore(void)
+{
+	blues_start_req("hub.status");
+	JAddBoolToObject(req, "delete", true);
+	JAddBoolToObject(req, "connected", true);
+	blues_send_req();
 }
