@@ -1,7 +1,7 @@
 ----
 ----
 ----
-# Moved to [WisBlock-Blues-Tracker](https://github.com/RAKWireless/Hummingbird-Blues-Gateway))
+# Moved to [Hummingbird-Blues-Gateway](https://github.com/RAKWireless/Hummingbird-Blues-Gateway)
 ----
 ----
 ----
